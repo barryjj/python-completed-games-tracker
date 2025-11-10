@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Completed Games Log</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0d1117; color: #c9d1d9; }
+        .card { background-color: #161b22; border: 1px solid #30363d; }
+        .input-style { background-color: #0d1117; border-color: #30363d; color: #c9d1d9; }
+        .modal-backdrop { background-color: rgba(0, 0, 0, 0.75); }
+        .table-header { background-color: #21262d; }
+    </style>
+</head>
+<body class="p-4 sm:p-8 min-h-screen">
+
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-8 flex justify-between items-center">
+            <h1 class="text-3xl font-bold text-white">Yearly Completion Log</h1>
+            <a href="{{ url_for('index_or_setup') }}" class="text-blue-400 hover:text-blue-300 transition duration-150 flex items-center">
+                <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                Dashboard
+            </a>
+        </header>
+
+        <div id="statusMessage" class="hidden p-3 mb-6 rounded-lg font-semibold transition duration-300"></div>
+
+        <button onclick="toggleModal(true)" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg mb-6 shadow-md transition duration-150">
+            + Log New Completion
+        </button>
+
+        <!-- Completed Games Table -->
+        <div class="card p-6 rounded-xl shadow-lg overflow-x-auto">
+            <h2 class="text-xl font-semibold mb-4 border-b border-gray-700 pb-2">Completed Games (2025)</h2>
+            
+            <table class="min-w-full divide-y divide-gray-700">
+                <thead class="table-header">
+                    <tr>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Game Title</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Date</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Platform</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Plays</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Context</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Notes</th>
+                    </tr>
+                </thead>
+                <tbody id="completedGamesBody" class="divide-y divide-gray-800">
+                    <!-- Data will be inserted here by JavaScript -->
+                    <tr><td colspan="6" class="p-4 text-center text-gray-500" id="loadingRow">Loading completed log...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Add Completion Modal -->
+    <div id="addCompletionModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center p-4 z-50">
+        <div class="card w-full max-w-2xl rounded-xl shadow-2xl p-6 relative">
+            <h2 class="text-2xl font-bold mb-6 text-white border-b border-gray-700 pb-3">Log New Game Completion</h2>
+            
+            <form id="addGameForm" class="grid grid-cols-1 gap-4">
+                
+                <!-- Game Name with Autocomplete -->
+                <div>
+                    <label for="gameName" class="block text-sm font-medium mb-1">Game Name <span class="text-red-500">*</span></label>
+                    <input type="text" id="gameName" name="gameName" required class="input-style w-full p-2.5 rounded-lg focus:ring-blue-500 focus:border-blue-500" autocomplete="off" oninput="searchLibrary(this.value)">
+                    <div id="autocompleteResults" class="absolute z-10 w-64 bg-[#161b22] border border-[#30363d] rounded-b-lg mt-1 max-h-40 overflow-y-auto hidden"></div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <!-- Completed Date -->
+                    <div>
+                        <label for="completedDate" class="block text-sm font-medium mb-1">Completed Date <span class="text-red-500">*</span></label>
+                        <input type="date" id="completedDate" name="completedDate" required class="input-style w-full p-2.5 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <!-- Playthroughs -->
+                    <div>
+                        <label for="playthroughs" class="block text-sm font-medium mb-1">Playthroughs</label>
+                        <input type="number" id="playthroughs" name="playthroughs" value="1" min="1" class="input-style w-full p-2.5 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+
+                <!-- Platform -->
+                <div>
+                    <label for="platform" class="block text-sm font-medium mb-1">Platform <span class="text-red-500">*</span></label>
+                    <select id="platform" name="platform" required class="input-style w-full p-2.5 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                        <option value="PC (Steam)">PC (Steam)</option>
+                        <option value="PC (Other)">PC (Other)</option>
+                        <option value="Switch">Switch</option>
+                        <option value="PS5">PS5</option>
+                        <option value="Xbox">Xbox</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                
+                <!-- DLC/Collection Checkboxes -->
+                <div class="flex space-x-6 mt-2">
+                    <label class="flex items-center space-x-2">
+                        <input type="checkbox" id="isDlcExpansion" name="isDlcExpansion" class="rounded text-green-500 border-gray-600 focus:ring-green-500" onchange="toggleDlcFields(this.checked)">
+                        <span class="text-sm">Is this DLC/Expansion?</span>
+                    </label>
+                    <label class="flex items-center space-x-2">
+                        <input type="checkbox" id="isPartOfCollection" name="isPartOfCollection" class="rounded text-green-500 border-gray-600 focus:ring-green-500" onchange="toggleCollectionFields(this.checked)">
+                        <span class="text-sm">Is this part of a Collection/Bundle?</span>
+                    </label>
+                </div>
+
+                <!-- Conditional DLC Field -->
+                <div id="dlcFields" class="hidden">
+                    <label for="parentGameName" class="block text-sm font-medium mb-1">Parent Game Name (for DLC)</label>
+                    <input type="text" id="parentGameName" name="parentGameName" class="input-style w-full p-2.5 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+
+                <!-- Conditional Collection Field -->
+                <div id="collectionFields" class="hidden">
+                    <label for="collectionName" class="block text-sm font-medium mb-1">Collection Name</label>
+                    <input type="text" id="collectionName" name="collectionName" class="input-style w-full p-2.5 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+
+                <!-- Notes -->
+                <div>
+                    <label for="notes" class="block text-sm font-medium mb-1">Notes</label>
+                    <textarea id="notes" name="notes" rows="3" class="input-style w-full p-2.5 rounded-lg focus:ring-blue-500 focus:border-blue-500"></textarea>
+                </div>
+                
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" onclick="toggleModal(false)" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150">
+                        Cancel
+                    </button>
+                    <button type="submit" id="submitBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150">
+                        Log Completion
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = '/api/completed_log';
+        const SEARCH_URL = '/api/library_search';
+        const modal = document.getElementById('addCompletionModal');
+        const form = document.getElementById('addGameForm');
+        const dlcFields = document.getElementById('dlcFields');
+        const collectionFields = document.getElementById('collectionFields');
+        const autocompleteResults = document.getElementById('autocompleteResults');
+        const gameNameInput = document.getElementById('gameName');
+        const logBody = document.getElementById('completedGamesBody');
+        const statusMessage = document.getElementById('statusMessage');
+        let searchTimeout;
+
+        // --- Utility Functions ---
+
+        function showStatus(message, isError = false) {
+            statusMessage.textContent = message;
+            statusMessage.className = `p-3 mb-6 rounded-lg font-semibold transition duration-300 ${isError ? 'bg-red-700 text-white' : 'bg-green-700 text-white'}`;
+            statusMessage.classList.remove('hidden');
+            setTimeout(() => {
+                statusMessage.classList.add('hidden');
+            }, 5000);
+        }
+
+        function toggleModal(show) {
+            if (show) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                form.reset();
+                toggleDlcFields(false);
+                toggleCollectionFields(false);
+                autocompleteResults.classList.add('hidden');
+                gameNameInput.value = ''; // Clear input on open
+                // Set default date to today
+                document.getElementById('completedDate').valueAsDate = new Date();
+            } else {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+
+        function toggleDlcFields(show) {
+            dlcFields.classList.toggle('hidden', !show);
+            // Require parent game name only if DLC is checked
+            document.getElementById('parentGameName').required = show; 
+            if (!show) document.getElementById('parentGameName').value = '';
+        }
+
+        function toggleCollectionFields(show) {
+            collectionFields.classList.toggle('hidden', !show);
+            // Require collection name only if collection is checked
+            document.getElementById('collectionName').required = show;
+            if (!show) document.getElementById('collectionName').value = '';
+        }
+
+        // --- Autocomplete Logic ---
+
+        async function searchLibrary(query) {
+            clearTimeout(searchTimeout);
+            autocompleteResults.innerHTML = '';
+            
+            if (query.length < 3) {
+                autocompleteResults.classList.add('hidden');
+                return;
+            }
+
+            searchTimeout = setTimeout(async () => {
+                try {
+                    const response = await fetch(`${SEARCH_URL}?q=${encodeURIComponent(query)}`);
+                    if (!response.ok) throw new Error('Failed to fetch library search results.');
+                    const results = await response.json();
+                    
+                    if (results.length > 0) {
+                        autocompleteResults.classList.remove('hidden');
+                        results.forEach(name => {
+                            const item = document.createElement('div');
+                            item.className = 'p-2 cursor-pointer hover:bg-[#30363d]';
+                            item.textContent = name;
+                            item.onclick = () => {
+                                gameNameInput.value = name;
+                                autocompleteResults.classList.add('hidden');
+                            };
+                            autocompleteResults.appendChild(item);
+                        });
+                    } else {
+                        autocompleteResults.classList.add('hidden');
+                    }
+                } catch (error) {
+                    console.error("Autocomplete error:", error);
+                    autocompleteResults.classList.add('hidden');
+                }
+            }, 300); // Debounce search
+        }
+
+        // Hide results when clicking outside
+        document.addEventListener('click', (event) => {
+            if (!gameNameInput.contains(event.target) && !autocompleteResults.contains(event.target)) {
+                autocompleteResults.classList.add('hidden');
+            }
+        });
+
+
+        // --- Render Log Table ---
+
+        function renderLog(log) {
+            logBody.innerHTML = '';
+            
+            const loadingRow = document.getElementById('loadingRow');
+            if (loadingRow) loadingRow.remove();
+
+            if (log.length === 0) {
+                logBody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-gray-500">No completed games logged yet. Add your first entry!</td></tr>';
+                return;
+            }
+
+            // Reverse the array to show most recent completions first
+            log.slice().reverse().forEach(entry => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-[#21262d] transition duration-150';
+                
+                // Determine context string for display
+                let contextHtml = '';
+                
+                if (entry.is_dlc_expansion) {
+                    contextHtml += `<span class="inline-block bg-blue-800 text-blue-200 text-xs font-semibold px-2 py-0.5 rounded-full mr-1">DLC</span>`;
+                    if (entry.parent_game_name) {
+                        contextHtml += `(Parent: ${entry.parent_game_name})`;
+                    }
+                }
+                
+                if (entry.is_part_of_collection) {
+                    contextHtml += `<span class="inline-block bg-purple-800 text-purple-200 text-xs font-semibold px-2 py-0.5 rounded-full mr-1">Collection</span>`;
+                    if (entry.collection_name) {
+                        contextHtml += `(${entry.collection_name})`;
+                    }
+                }
+                
+                if (!entry.is_dlc_expansion && !entry.is_part_of_collection) {
+                    contextHtml = '<span class="text-gray-500">Base Game</span>';
+                }
+
+                row.innerHTML = `
+                    <td class="px-3 py-3 text-sm font-medium text-white">${entry.game_name}</td>
+                    <td class="px-3 py-3 text-sm">${entry.completed_date}</td>
+                    <td class="px-3 py-3 text-sm">${entry.platform}</td>
+                    <td class="px-3 py-3 text-sm">${entry.playthroughs}</td>
+                    <td class="px-3 py-3 text-sm">${contextHtml}</td>
+                    <td class="px-3 py-3 text-sm text-gray-400 max-w-xs overflow-hidden truncate" title="${entry.notes || 'No notes provided.'}">${entry.notes || '—'}</td>
+                `;
+                logBody.appendChild(row);
+            });
+        }
+
+        // --- Fetch & Submit Handlers ---
+
+        async function fetchLog() {
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) throw new Error('Failed to fetch completed log.');
+                const log = await response.json();
+                renderLog(log);
+            } catch (error) {
+                showStatus(`Failed to load log: ${error.message}`, true);
+                logBody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-red-500">Error loading data. Check server connection.</td></tr>';
+            }
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            document.getElementById('submitBtn').textContent = 'Saving...';
+            document.getElementById('submitBtn').disabled = true;
+
+            const formData = new FormData(form);
+            const data = {
+                game_name: formData.get('gameName'),
+                completed_date: formData.get('completedDate'),
+                platform: formData.get('platform'),
+                playthroughs: parseInt(formData.get('playthroughs') || 1, 10),
+                notes: formData.get('notes'),
+                
+                is_dlc_expansion: formData.get('isDlcExpansion') === 'on',
+                parent_game_name: formData.get('parentGameName') || null,
+                
+                is_part_of_collection: formData.get('isPartOfCollection') === 'on',
+                collection_name: formData.get('collectionName') || null,
+            };
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.status === 201) {
+                    showStatus('Game successfully logged!');
+                    toggleModal(false);
+                    fetchLog(); // Refresh the table
+                } else {
+                    const errorData = await response.json();
+                    showStatus(`Log failed: ${errorData.error || 'Server error'}`, true);
+                }
+            } catch (error) {
+                showStatus(`Network error during submission: ${error.message}`, true);
+            } finally {
+                document.getElementById('submitBtn').textContent = 'Log Completion';
+                document.getElementById('submitBtn').disabled = false;
+            }
+        });
+
+        // Load data on page load
+        document.addEventListener('DOMContentLoaded', fetchLog);
+    </script>
+</body>
+</html>

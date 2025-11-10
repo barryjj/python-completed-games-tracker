@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yearly Completion Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0d1117; }
+        .card { background-color: #161b22; border: 1px solid #30363d; }
+        .success { background-color: #238636; }
+        .info { background-color: #388bfd; }
+    </style>
+</head>
+<body class="p-4 sm:p-8 min-h-screen flex items-center justify-center">
+
+    <div class="w-full max-w-4xl">
+        <h1 class="text-4xl font-bold text-white mb-8 text-center">
+            2025 Game Completion Log
+        </h1>
+
+        <!-- Error Message Display -->
+        {% if error %}
+        <div class="bg-red-700 text-white p-4 rounded-lg mb-6 shadow-md" role="alert">
+            <p class="font-semibold">Error:</p>
+            <p>{{ error }}</p>
+            <p class="text-sm mt-2">Please go to <a href="{{ url_for('setup') }}" class="underline font-bold">Setup Page</a> to check your credentials.</p>
+        </div>
+        {% endif %}
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <!-- Library Status Card -->
+            <div class="card p-6 rounded-xl shadow-lg">
+                <h2 class="text-2xl font-semibold text-gray-200 mb-4 flex items-center">
+                    <svg class="w-6 h-6 mr-3 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                    Steam Library Cache
+                </h2>
+                <p class="text-xl font-bold text-white mb-2">{{ library_size }} <span class="text-gray-400 font-normal text-sm">Games Owned</span></p>
+                
+                <p class="text-gray-400 text-sm">
+                    This list is used to quickly pull details when you log a completed game. It auto-refreshed on page load if it was stale.
+                </p>
+
+                <div class="mt-4">
+                    <button id="refreshLibraryBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150 shadow-md">
+                        Manually Refresh Library
+                    </button>
+                    <p id="libraryStatus" class="mt-2 text-sm text-yellow-500 hidden"></p>
+                </div>
+            </div>
+
+            <!-- Completed Log Card -->
+            <div class="card p-6 rounded-xl shadow-lg">
+                <h2 class="text-2xl font-semibold text-gray-200 mb-4 flex items-center">
+                    <svg class="w-6 h-6 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 014.382 1.033 12.004 12.004 0 00-4.382 17.022c0 0 0 0 0 0a12.004 12.004 0 004.382-17.022z"></path></svg>
+                    Completed Games Log
+                </h2>
+                <p class="text-xl font-bold text-white mb-2">{{ log_size }} <span class="text-gray-400 font-normal text-sm">Games Logged</span></p>
+                
+                <p class="text-gray-400 text-sm">
+                    This is your annual tracker. Each entry includes: Name, Platform, Date, Playthroughs, Notes, and Collection status.
+                </p>
+
+                <div class="mt-4">
+                    <button onclick="window.location.href='/log'" class="success hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150 shadow-md">
+                        View/Add Completed Games
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    
+    <script>
+        document.getElementById('refreshLibraryBtn').addEventListener('click', async () => {
+            const statusElement = document.getElementById('libraryStatus');
+            statusElement.classList.remove('hidden', 'text-yellow-500', 'text-red-500', 'text-green-500');
+            statusElement.classList.add('text-yellow-500');
+            statusElement.textContent = "Refreshing... please wait.";
+
+            // Hitting the main route triggers the library refresh logic in Python
+            try {
+                // Fetching the index route again triggers the check/refresh logic in app.py
+                const response = await fetch('/', { method: 'GET' }); 
+                if (response.ok) {
+                    statusElement.classList.replace('text-yellow-500', 'text-green-500');
+                    statusElement.textContent = "Refresh successful! Reloading page in 2s to show updated count...";
+                    setTimeout(() => window.location.reload(), 2000);
+                } else {
+                    const data = await response.text();
+                    statusElement.classList.replace('text-yellow-500', 'text-red-500');
+                    statusElement.textContent = `Refresh failed. Please check app.py logs or credentials: ${data.substring(0, 50)}...`;
+                }
+            } catch (error) {
+                statusElement.classList.replace('text-yellow-500', 'text-red-500');
+                statusElement.textContent = `Network error during refresh: ${error.message}. Check Python server status.`;
+            }
+        });
+    </script>
+</body>
+</html>
