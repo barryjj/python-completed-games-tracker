@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block title %}Full Library - Steam Tracker{% endblock %}
+
+{% block content %}
+    <div class="w-full max-w-7xl mx-auto">
+        <header class="mb-8 flex justify-between items-center flex-wrap">
+            <h1 class="text-4xl font-extrabold text-white">
+                Steam Game Library
+            </h1>
+            <a href="{{ url_for('views.index_or_setup') }}" class="btn-secondary py-2 px-4 rounded-lg font-semibold shadow-md flex items-center mt-4 sm:mt-0">
+                ← Back to Dashboard
+            </a>
+        </header>
+
+        <!-- Control Bar (Search and Filters) -->
+        <div class="card p-4 rounded-xl shadow-lg mb-6 flex flex-col sm:flex-row gap-4 items-center bg-gray-800 border border-gray-700">
+            <input type="text" id="searchInput" placeholder="Filter games by name..." class="input-style flex-grow p-3 rounded-lg text-sm bg-gray-700 text-white border border-gray-600 focus:ring-blue-500 focus:border-blue-500" />
+            
+            <select id="sortSelect" class="input-style p-3 rounded-lg text-sm bg-gray-700 text-white border border-gray-600">
+                <option value="name_asc">Name (A-Z)</option>
+                <option value="name_desc">Name (Z-A)</option>
+                <option value="playtime_desc">Playtime (High to Low)</option>
+                <option value="playtime_asc">Playtime (Low to High)</option>
+                <option value="completed">Completion Status</option>
+                <!-- NEW: Option to sort by DLC Count -->
+                <option value="dlc_count_desc">DLC Count (High to Low)</option>
+            </select>
+        </div>
+
+        <!-- Status and Library Container -->
+        <div class="card p-4 sm:p-6 rounded-xl shadow-xl bg-gray-800 border border-gray-700">
+            <div id="statusMessage" class="text-white text-lg mb-4">
+                Loading library data...
+            </div>
+            
+            <!-- Games List Container -->
+            <div id="gamesList" class="space-y-4">
+                <!-- Games will be injected here -->
+            </div>
+
+            <div id="noResults" class="hidden text-center text-gray-400 py-10">
+                No games match your current filter criteria.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_LIBRARY_ENDPOINT = "{{ url_for('api.api_get_library') }}";
+        const searchInput = document.getElementById('searchInput');
+        const sortSelect = document.getElementById('sortSelect');
+        const statusMessage = document.getElementById('statusMessage');
+        const gamesList = document.getElementById('gamesList');
+        const noResults = document.getElementById('noResults');
+        let allGames = []; // Stores the full fetched data
+
+        // --- Utility Functions ---
+
+        function formatPlaytime(minutes) {
+            if (!minutes || minutes === 0) return '0 hrs';
+            const hours = Math.floor(minutes / 60);
+            const remainingMinutes = minutes % 60;
+            
+            let parts = [];
+            if (hours > 0) parts.push(`${hours} hrs`);
+            if (remainingMinutes > 0) parts.push(`${remainingMinutes} min`);
+            
+            return parts.length > 0 ? parts.join(' ') : '0 min';
+        }
+
+        function getGameIconUrl(appid) {
+            // Steam URL format for icons
+            return `https://media.steampowered.com/steamcommunity/public/images/apps/${appid}/${appid}.jpg`;
+        }
+
+        // --- Rendering Logic ---
+
+        function renderGame(game) {
+            const playtimeDisplay = formatPlaytime(game.playtime_forever);
+            // Updated colors for completed/unfinished status
+            const completedClass = game.is_completed ? 'bg-green-900 border-green-700' : 'bg-gray-700 border-gray-600';
+            const completedTag = game.is_completed 
+                ? `<span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-green-500 text-white">Completed</span>`
+                : `<span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-500 text-white">Unfinished</span>`;
+            
+            // NEW: DLC Count Tag
+            const dlcTag = game.dlc_count > 0 
+                ? `<span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-indigo-500 text-white ml-2">${game.dlc_count} DLC${game.dlc_count !== 1 ? 's' : ''}</span>`
+                : '';
+
+            return `
+                <div class="flex items-center p-4 rounded-xl shadow-lg ${completedClass} transition duration-200 hover:bg-gray-600 cursor-pointer">
+                    <!-- Icon/Cover Image -->
+                    <img src="${getGameIconUrl(game.appid)}" 
+                         alt="${game.name} Icon" 
+                         onerror="this.onerror=null; this.src='https://placehold.co/46x46/374151/ffffff?text=Game';"
+                         class="w-12 h-12 object-cover rounded-md mr-4 flex-shrink-0 border border-gray-500">
+                    
+                    <!-- Game Info -->
+                    <div class="flex-grow min-w-0">
+                        <h3 class="text-lg font-bold text-white truncate">${game.name}</h3>
+                        <p class="text-sm text-gray-300">Played: <span class="font-semibold text-blue-300">${playtimeDisplay}</span></p>
+                    </div>
+
+                    <!-- Status Tags -->
+                    <div class="flex flex-shrink-0 ml-4 space-x-2">
+                        ${completedTag}
+                        ${dlcTag}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderLibrary(games) {
+            gamesList.innerHTML = '';
+            if (games.length === 0) {
+                noResults.classList.remove('hidden');
+                // Ensure status message reflects the situation
+                if (allGames.length > 0) {
+                    statusMessage.textContent = `No games match your current filter criteria.`;
+                }
+            } else {
+                noResults.classList.add('hidden');
+                games.forEach(game => {
+                    gamesList.innerHTML += renderGame(game);
+                });
+                // Update status message with current count
+                statusMessage.textContent = `Displaying ${games.length} of ${allGames.length} games. Last Updated: ${formatTimestamp(allGames.last_updated_ts)}`;
+            }
+        }
+        
+        function formatTimestamp(timestamp) {
+            if (!timestamp) return "Unknown";
+            const date = new Date(timestamp * 1000);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+        }
+
+
+        // --- Filtering and Sorting Logic ---
+
+        function filterAndSortGames() {
+            const query = searchInput.value.toLowerCase().trim();
+            const sortBy = sortSelect.value;
+
+            // 1. Filtering
+            let filteredGames = allGames.filter(game => 
+                game.name.toLowerCase().includes(query)
+            );
+
+            // 2. Sorting
+            filteredGames.sort((a, b) => {
+                // Helper to safely get value for comparison, defaulting to 0 or ""
+                const getVal = (obj, key, isString = false) => {
+                    let val = obj.hasOwnProperty(key) ? obj[key] : (isString ? "z" : 0);
+                    return isString ? val.toLowerCase() : val;
+                };
+
+                if (sortBy === 'name_asc') {
+                    return getVal(a, 'name', true).localeCompare(getVal(b, 'name', true));
+                } else if (sortBy === 'name_desc') {
+                    return getVal(b, 'name', true).localeCompare(getVal(a, 'name', true));
+                } else if (sortBy === 'playtime_desc') {
+                    return getVal(b, 'playtime_forever') - getVal(a, 'playtime_forever');
+                } else if (sortBy === 'playtime_asc') {
+                    return getVal(a, 'playtime_forever') - getVal(b, 'playtime_forever');
+                } else if (sortBy === 'completed') {
+                    // Completed games first (true > false)
+                    return (getVal(b, 'is_completed') ? 1 : 0) - (getVal(a, 'is_completed') ? 1 : 0);
+                } else if (sortBy === 'dlc_count_desc') {
+                    // NEW: Sort by DLC count
+                    return getVal(b, 'dlc_count') - getVal(a, 'dlc_count');
+                }
+                return 0; // Default to no change
+            });
+
+            renderLibrary(filteredGames);
+        }
+
+        // --- Data Fetching ---
+
+        async function fetchLibraryData() {
+            statusMessage.textContent = 'Fetching and processing game data from cache...';
+            statusMessage.classList.remove('text-red-400');
+            try {
+                const response = await fetch(API_LIBRARY_ENDPOINT);
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `Failed to fetch library (Status: ${response.status})`);
+                }
+
+                const data = await response.json();
+                
+                allGames = data.games || [];
+                allGames.last_updated_ts = data.last_updated; // Store timestamp for display
+
+                if (allGames.length === 0) {
+                    statusMessage.textContent = 'The library cache is empty. Go back to the dashboard and click "Refresh Library" to populate the list.';
+                } else {
+                    filterAndSortGames(); // Apply initial sort/filter
+                }
+
+            } catch (error) {
+                statusMessage.classList.add('text-red-400');
+                statusMessage.textContent = `ERROR: ${error.message}. Ensure your API key and Steam ID are set up correctly and the library has been refreshed.`;
+                console.error("Library fetch error:", error);
+            }
+        }
+
+        // --- Event Listeners ---
+        searchInput.addEventListener('input', filterAndSortGames);
+        sortSelect.addEventListener('change', filterAndSortGames);
+
+        // Load data on page load
+        document.addEventListener('DOMContentLoaded', fetchLibraryData);
+
+    </script>
+{% endblock %}

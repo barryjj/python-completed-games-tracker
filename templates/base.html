@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Steam Game Tracker{% endblock %}</title>
+
+    <!-- Load Tailwind CSS and Inter Font -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    
+    <!-- Link to Centralized Dark Theme Styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    
+    <style>
+        /* Tailwind configuration for custom classes, based on the CSS variables */
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8 min-h-screen">
+    <div class="max-w-7xl mx-auto">
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

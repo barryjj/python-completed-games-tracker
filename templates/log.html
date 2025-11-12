@@ -1,330 +1,476 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Completed Games Log</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Inter', sans-serif; background-color: #0d1117; color: #c9d1d9; }
-        .card { background-color: #161b22; border: 1px solid #30363d; }
-        .input-style { background-color: #0d1117; border-color: #30363d; color: #c9d1d9; }
-        .modal-backdrop { background-color: rgba(0, 0, 0, 0.75); }
-        .table-header { background-color: #21262d; }
-    </style>
-</head>
-<body class="p-4 sm:p-8 min-h-screen">
+{% extends "base.html" %}
 
-    <div class="max-w-6xl mx-auto">
-        <header class="mb-8 flex justify-between items-center">
-            <h1 class="text-3xl font-bold text-white">Yearly Completion Log</h1>
-            <a href="{{ url_for('index_or_setup') }}" class="text-blue-400 hover:text-blue-300 transition duration-150 flex items-center">
-                <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-                Dashboard
+{% block title %}Completed Games Log{% endblock %}
+
+{% block content %}
+    <header class="mb-8 flex justify-between items-center flex-wrap">
+        <h1 class="text-4xl font-extrabold text-white">
+            Completed Games Log
+        </h1>
+        <div class="flex space-x-4 mt-4 sm:mt-0">
+            <!-- Link uses the established views blueprint prefix -->
+            <button id="openModalBtn" class="btn-primary py-2 px-4 rounded-lg font-semibold shadow-md flex items-center transition duration-200">
+                + Add New Entry
+            </button>
+            <a href="{{ url_for('views.index_or_setup') }}" class="btn-secondary py-2 px-4 rounded-lg font-semibold shadow-md flex items-center transition duration-200">
+                ← Back to Dashboard
             </a>
-        </header>
-
-        <div id="statusMessage" class="hidden p-3 mb-6 rounded-lg font-semibold transition duration-300"></div>
-
-        <button onclick="toggleModal(true)" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg mb-6 shadow-md transition duration-150">
-            + Log New Completion
-        </button>
-
-        <!-- Completed Games Table -->
-        <div class="card p-6 rounded-xl shadow-lg overflow-x-auto">
-            <h2 class="text-xl font-semibold mb-4 border-b border-gray-700 pb-2">Completed Games (2025)</h2>
-            
-            <table class="min-w-full divide-y divide-gray-700">
-                <thead class="table-header">
-                    <tr>
-                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Game Title</th>
-                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Date</th>
-                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Platform</th>
-                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Plays</th>
-                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Context</th>
-                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Notes</th>
-                    </tr>
-                </thead>
-                <tbody id="completedGamesBody" class="divide-y divide-gray-800">
-                    <!-- Data will be inserted here by JavaScript -->
-                    <tr><td colspan="6" class="p-4 text-center text-gray-500" id="loadingRow">Loading completed log...</td></tr>
-                </tbody>
-            </table>
         </div>
+    </header>
+
+    <!-- Status Message Area -->
+    <div id="statusMessage" class="hidden p-3 mb-4 rounded-xl text-sm font-medium" role="alert"></div>
+
+    <!-- Log Table Container -->
+    <div class="card p-4 sm:p-6 rounded-xl shadow-xl overflow-x-auto">
+        <h2 class="text-xl font-semibold text-white border-b border-gray-700 pb-3 mb-4">
+            Total Completed: <span id="totalCompletedCount" class="text-blue-400">...</span>
+        </h2>
+        
+        <table class="min-w-full divide-y divide-gray-700">
+            <thead class="bg-gray-800">
+                <tr>
+                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                        Game / DLC
+                    </th>
+                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                        Date
+                    </th>
+                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider hidden sm:table-cell">
+                        Collection
+                    </th>
+                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider hidden lg:table-cell">
+                        Notes
+                    </th>
+                    <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">
+                        Actions
+                    </th>
+                </tr>
+            </thead>
+            <tbody id="logTableBody" class="divide-y divide-gray-800">
+                <!-- Log entries will be inserted here by JavaScript -->
+                <tr>
+                    <td colspan="5" class="p-4 text-center text-gray-500">Loading log...</td>
+                </tr>
+            </tbody>
+        </table>
     </div>
 
-    <!-- Add Completion Modal -->
-    <div id="addCompletionModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center p-4 z-50">
-        <div class="card w-full max-w-2xl rounded-xl shadow-2xl p-6 relative">
-            <h2 class="text-2xl font-bold mb-6 text-white border-b border-gray-700 pb-3">Log New Game Completion</h2>
+    <!-- Modal for Adding New Entry -->
+    <div id="logModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden transition-opacity duration-300">
+        <div class="card w-full max-w-lg p-6 rounded-xl shadow-2xl relative">
+            <h2 class="text-2xl font-bold text-white mb-4 border-b border-gray-700 pb-3">Log Completion</h2>
             
-            <form id="addGameForm" class="grid grid-cols-1 gap-4">
-                
-                <!-- Game Name with Autocomplete -->
-                <div>
-                    <label for="gameName" class="block text-sm font-medium mb-1">Game Name <span class="text-red-500">*</span></label>
-                    <input type="text" id="gameName" name="gameName" required class="input-style w-full p-2.5 rounded-lg focus:ring-blue-500 focus:border-blue-500" autocomplete="off" oninput="searchLibrary(this.value)">
-                    <div id="autocompleteResults" class="absolute z-10 w-64 bg-[#161b22] border border-[#30363d] rounded-b-lg mt-1 max-h-40 overflow-y-auto hidden"></div>
-                </div>
+            <button id="closeModalBtn" class="absolute top-4 right-4 text-gray-400 hover:text-white transition">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
 
-                <div class="grid grid-cols-2 gap-4">
-                    <!-- Completed Date -->
-                    <div>
-                        <label for="completedDate" class="block text-sm font-medium mb-1">Completed Date <span class="text-red-500">*</span></label>
-                        <input type="date" id="completedDate" name="completedDate" required class="input-style w-full p-2.5 rounded-lg focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    <!-- Playthroughs -->
-                    <div>
-                        <label for="playthroughs" class="block text-sm font-medium mb-1">Playthroughs</label>
-                        <input type="number" id="playthroughs" name="playthroughs" value="1" min="1" class="input-style w-full p-2.5 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+            <form id="logForm" class="space-y-4">
+
+                <!-- Game Search/Select Field -->
+                <div>
+                    <label for="gameName" class="block text-sm font-medium text-gray-300 mb-1">Search Game</label>
+                    <input type="text" id="gameName" name="gameName" placeholder="Search for a game title..." 
+                           class="input-style w-full p-2.5 rounded-lg border focus:ring-blue-500 focus:border-blue-500" required>
+                    <input type="hidden" id="appid" name="appid" required>
+                    <div id="gameSuggestions" class="mt-2 space-y-1 max-h-40 overflow-y-auto rounded-lg bg-gray-700 shadow-lg">
+                        <!-- Search suggestions go here -->
                     </div>
                 </div>
 
-                <!-- Platform -->
+                <!-- DLC/Expansion Checkbox -->
+                <div class="flex items-center space-x-2 pt-2">
+                    <input type="checkbox" id="isDlcExpansion" name="isDlcExpansion" class="h-4 w-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500">
+                    <label for="isDlcExpansion" class="text-sm font-medium text-gray-300">This is a DLC or Expansion</label>
+                </div>
+
+                <!-- DLC Name Input (Initially Hidden) -->
+                <div id="dlcNameGroup" class="hidden">
+                    <label for="dlc_name" class="block text-sm font-medium text-gray-300 mb-1">DLC/Expansion Name</label>
+                    <input type="text" id="dlc_name" name="dlc_name" placeholder="Search for the specific DLC/Expansion title..."
+                           class="input-style w-full p-2.5 rounded-lg border focus:ring-blue-500 focus:border-blue-500">
+                    <div id="dlcSuggestions" class="mt-2 space-y-1 max-h-40 overflow-y-auto rounded-lg bg-gray-700 shadow-lg">
+                        <!-- DLC search suggestions go here -->
+                    </div>
+                </div>
+
+                <!-- Completion Date Field -->
                 <div>
-                    <label for="platform" class="block text-sm font-medium mb-1">Platform <span class="text-red-500">*</span></label>
-                    <select id="platform" name="platform" required class="input-style w-full p-2.5 rounded-lg focus:ring-blue-500 focus:border-blue-500">
-                        <option value="PC (Steam)">PC (Steam)</option>
-                        <option value="PC (Other)">PC (Other)</option>
-                        <option value="Switch">Switch</option>
-                        <option value="PS5">PS5</option>
-                        <option value="Xbox">Xbox</option>
-                        <option value="Other">Other</option>
-                    </select>
-                </div>
-                
-                <!-- DLC/Collection Checkboxes -->
-                <div class="flex space-x-6 mt-2">
-                    <label class="flex items-center space-x-2">
-                        <input type="checkbox" id="isDlcExpansion" name="isDlcExpansion" class="rounded text-green-500 border-gray-600 focus:ring-green-500" onchange="toggleDlcFields(this.checked)">
-                        <span class="text-sm">Is this DLC/Expansion?</span>
-                    </label>
-                    <label class="flex items-center space-x-2">
-                        <input type="checkbox" id="isPartOfCollection" name="isPartOfCollection" class="rounded text-green-500 border-gray-600 focus:ring-green-500" onchange="toggleCollectionFields(this.checked)">
-                        <span class="text-sm">Is this part of a Collection/Bundle?</span>
-                    </label>
+                    <label for="completion_date" class="block text-sm font-medium text-gray-300 mb-1">Completion Date</label>
+                    <input type="date" id="completion_date" name="completion_date" value="{{ today }}"
+                           class="input-style w-full p-2.5 rounded-lg border focus:ring-blue-500 focus:border-blue-500" required>
                 </div>
 
-                <!-- Conditional DLC Field -->
-                <div id="dlcFields" class="hidden">
-                    <label for="parentGameName" class="block text-sm font-medium mb-1">Parent Game Name (for DLC)</label>
-                    <input type="text" id="parentGameName" name="parentGameName" class="input-style w-full p-2.5 rounded-lg focus:ring-blue-500 focus:border-blue-500">
-                </div>
-
-                <!-- Conditional Collection Field -->
-                <div id="collectionFields" class="hidden">
-                    <label for="collectionName" class="block text-sm font-medium mb-1">Collection Name</label>
-                    <input type="text" id="collectionName" name="collectionName" class="input-style w-full p-2.5 rounded-lg focus:ring-blue-500 focus:border-blue-500">
-                </div>
-
-                <!-- Notes -->
+                <!-- Collection Name (Optional) -->
                 <div>
-                    <label for="notes" class="block text-sm font-medium mb-1">Notes</label>
-                    <textarea id="notes" name="notes" rows="3" class="input-style w-full p-2.5 rounded-lg focus:ring-blue-500 focus:border-blue-500"></textarea>
+                    <label for="collection_name" class="block text-sm font-medium text-gray-300 mb-1">Collection / Series (Optional)</label>
+                    <input type="text" id="collection_name" name="collection_name" placeholder="e.g., Final Fantasy, Indie Gems"
+                           class="input-style w-full p-2.5 rounded-lg border focus:ring-blue-500 focus:border-blue-500">
                 </div>
-                
-                <div class="flex justify-end space-x-3 pt-4">
-                    <button type="button" onclick="toggleModal(false)" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150">
-                        Cancel
-                    </button>
-                    <button type="submit" id="submitBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150">
-                        Log Completion
-                    </button>
+
+                <!-- Notes Field (Optional) -->
+                <div>
+                    <label for="notes" class="block text-sm font-medium text-gray-300 mb-1">Notes (Optional)</label>
+                    <textarea id="notes" name="notes" rows="3" placeholder="Thoughts on the game, duration, difficulty, etc."
+                              class="input-style w-full p-2.5 rounded-lg border focus:ring-blue-500 focus:border-blue-500"></textarea>
                 </div>
+
+                <button type="submit" id="submitBtn" class="btn-primary w-full py-2.5 rounded-lg font-bold shadow-lg mt-6">
+                    Log Completion
+                </button>
             </form>
+            <p id="modalStatus" class="mt-4 text-sm text-center text-red-400 hidden"></p>
         </div>
     </div>
 
     <script>
-        const API_URL = '/api/completed_log';
-        const SEARCH_URL = '/api/library_search';
-        const modal = document.getElementById('addCompletionModal');
-        const form = document.getElementById('addGameForm');
-        const dlcFields = document.getElementById('dlcFields');
-        const collectionFields = document.getElementById('collectionFields');
-        const autocompleteResults = document.getElementById('autocompleteResults');
-        const gameNameInput = document.getElementById('gameName');
-        const logBody = document.getElementById('completedGamesBody');
+        // --- API ENDPOINTS (CORRECTED) ---
+        // FIX: Changed 'api.api_log_management' to the correct function name 'api.api_log_completion'
+        const API_LOG_ENDPOINT = '{{ url_for('api.api_log_completion') }}'; 
+        const API_GET_LOG_ENDPOINT = '{{ url_for('api.api_get_log') }}';
+        const API_DELETE_ENDPOINT_BASE = '{{ url_for('api.api_delete_log_entry', log_id='PLACEHOLDER') }}'.replace('PLACEHOLDER', '');
+        const API_SEARCH_ENDPOINT = '{{ url_for('api.api_search_games') }}';
+        
+        // --- DOM Elements ---
+        const modal = document.getElementById('logModal');
+        const openModalBtn = document.getElementById('openModalBtn');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const logForm = document.getElementById('logForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const logTableBody = document.getElementById('logTableBody');
+        const totalCompletedCount = document.getElementById('totalCompletedCount');
         const statusMessage = document.getElementById('statusMessage');
-        let searchTimeout;
+        const gameNameInput = document.getElementById('gameName');
+        const appidInput = document.getElementById('appid');
+        const gameSuggestionsDiv = document.getElementById('gameSuggestions');
+        const dlcCheckbox = document.getElementById('isDlcExpansion');
+        const dlcNameGroup = document.getElementById('dlcNameGroup');
+        const dlcNameInput = document.getElementById('dlc_name');
+        const dlcSuggestionsDiv = document.getElementById('dlcSuggestions');
+        const modalStatus = document.getElementById('modalStatus');
+        
+        let selectedGameAppId = null; // Stores the AppID of the main game selected
+
+        // Set today's date as default
+        document.getElementById('completion_date').value = new Date().toISOString().split('T')[0];
 
         // --- Utility Functions ---
 
+        /**
+         * Toggles the visibility of the modal.
+         * @param {boolean} show 
+         */
+        function toggleModal(show) {
+            modal.classList.toggle('hidden', !show);
+            if (show) {
+                // Reset form state when opening
+                logForm.reset();
+                appidInput.value = '';
+                selectedGameAppId = null;
+                gameSuggestionsDiv.innerHTML = '';
+                dlcNameGroup.classList.add('hidden');
+                dlcNameInput.required = false;
+                modalStatus.classList.add('hidden');
+            }
+        }
+
+        /**
+         * Displays a status message above the log table.
+         * @param {string} message 
+         * @param {boolean} isError 
+         */
         function showStatus(message, isError = false) {
             statusMessage.textContent = message;
-            statusMessage.className = `p-3 mb-6 rounded-lg font-semibold transition duration-300 ${isError ? 'bg-red-700 text-white' : 'bg-green-700 text-white'}`;
             statusMessage.classList.remove('hidden');
+            if (isError) {
+                statusMessage.className = 'p-3 mb-4 rounded-xl text-sm font-medium bg-red-800 text-red-200';
+            } else {
+                statusMessage.className = 'p-3 mb-4 rounded-xl text-sm font-medium bg-green-800 text-green-200';
+            }
+            // Hide after 5 seconds
             setTimeout(() => {
                 statusMessage.classList.add('hidden');
             }, 5000);
         }
 
-        function toggleModal(show) {
-            if (show) {
-                modal.classList.remove('hidden');
-                modal.classList.add('flex');
-                form.reset();
-                toggleDlcFields(false);
-                toggleCollectionFields(false);
-                autocompleteResults.classList.add('hidden');
-                gameNameInput.value = ''; // Clear input on open
-                // Set default date to today
-                document.getElementById('completedDate').valueAsDate = new Date();
-            } else {
-                modal.classList.add('hidden');
-                modal.classList.remove('flex');
-            }
-        }
-
-        function toggleDlcFields(show) {
-            dlcFields.classList.toggle('hidden', !show);
-            // Require parent game name only if DLC is checked
-            document.getElementById('parentGameName').required = show; 
-            if (!show) document.getElementById('parentGameName').value = '';
-        }
-
-        function toggleCollectionFields(show) {
-            collectionFields.classList.toggle('hidden', !show);
-            // Require collection name only if collection is checked
-            document.getElementById('collectionName').required = show;
-            if (!show) document.getElementById('collectionName').value = '';
-        }
-
-        // --- Autocomplete Logic ---
-
-        async function searchLibrary(query) {
-            clearTimeout(searchTimeout);
-            autocompleteResults.innerHTML = '';
-            
-            if (query.length < 3) {
-                autocompleteResults.classList.add('hidden');
+        /**
+         * Displays search results as clickable suggestions.
+         * @param {Array} results 
+         * @param {HTMLElement} container 
+         * @param {Function} selectCallback 
+         */
+        function renderSuggestions(results, container, selectCallback) {
+            container.innerHTML = '';
+            if (results.length === 0) {
+                container.innerHTML = '<p class="p-2 text-sm text-gray-400">No results found.</p>';
                 return;
             }
 
-            searchTimeout = setTimeout(async () => {
-                try {
-                    const response = await fetch(`${SEARCH_URL}?q=${encodeURIComponent(query)}`);
-                    if (!response.ok) throw new Error('Failed to fetch library search results.');
-                    const results = await response.json();
-                    
-                    if (results.length > 0) {
-                        autocompleteResults.classList.remove('hidden');
-                        results.forEach(name => {
-                            const item = document.createElement('div');
-                            item.className = 'p-2 cursor-pointer hover:bg-[#30363d]';
-                            item.textContent = name;
-                            item.onclick = () => {
-                                gameNameInput.value = name;
-                                autocompleteResults.classList.add('hidden');
-                            };
-                            autocompleteResults.appendChild(item);
-                        });
-                    } else {
-                        autocompleteResults.classList.add('hidden');
-                    }
-                } catch (error) {
-                    console.error("Autocomplete error:", error);
-                    autocompleteResults.classList.add('hidden');
+            results.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'p-2 text-sm text-gray-100 hover:bg-gray-600 cursor-pointer transition rounded-lg';
+                div.textContent = item.name;
+                div.dataset.appid = item.appid;
+                div.dataset.name = item.name;
+
+                div.addEventListener('click', () => {
+                    selectCallback(item.appid, item.name);
+                    container.innerHTML = ''; // Clear suggestions after selection
+                });
+                container.appendChild(div);
+            });
+        }
+        
+        /**
+         * Fetches games or DLCs based on user query and type.
+         * @param {string} query 
+         * @param {string} type 'game' or 'dlc'
+         * @param {string|null} parentAppid 
+         * @returns {Promise<Array>}
+         */
+        async function searchGames(query, type, parentAppid = null) {
+            if (query.length < 2) return [];
+
+            const url = `${API_SEARCH_ENDPOINT}?query=${encodeURIComponent(query)}&type=${type}${parentAppid ? '&parent_appid=' + parentAppid : ''}`;
+            try {
+                const response = await fetch(url);
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.results || [];
+                } else {
+                    console.error('Search failed:', response.status);
+                    return [];
                 }
-            }, 300); // Debounce search
+            } catch (e) {
+                console.error('Search network error:', e);
+                return [];
+            }
+        }
+        
+        // --- Handlers ---
+        
+        /** Handles selection of a main game. */
+        function selectMainGame(appid, name) {
+            appidInput.value = appid;
+            gameNameInput.value = name;
+            selectedGameAppId = appid; // Store appid for potential DLC search
+            dlcNameInput.value = ''; // Clear DLC name on new main game selection
+        }
+        
+        /** Handles selection of a DLC. */
+        function selectDlc(appid, name) {
+            // Overwrite the main appid for logging if DLC is selected
+            appidInput.value = appid; 
+            dlcNameInput.value = name;
         }
 
-        // Hide results when clicking outside
-        document.addEventListener('click', (event) => {
-            if (!gameNameInput.contains(event.target) && !autocompleteResults.contains(event.target)) {
-                autocompleteResults.classList.add('hidden');
+        // Search logic for main game
+        gameNameInput.addEventListener('input', async () => {
+            const query = gameNameInput.value;
+            if (query.length >= 2) {
+                const results = await searchGames(query, 'game');
+                renderSuggestions(results, gameSuggestionsDiv, selectMainGame);
+            } else {
+                gameSuggestionsDiv.innerHTML = '';
+                appidInput.value = ''; // Clear appid if query is too short
+                selectedGameAppId = null;
+            }
+        });
+        
+        // Search logic for DLC/Expansion
+        dlcNameInput.addEventListener('input', async () => {
+            const query = dlcNameInput.value;
+            if (!selectedGameAppId) {
+                dlcSuggestionsDiv.innerHTML = '<p class="p-2 text-sm text-red-400">Select a main game first.</p>';
+                return;
+            }
+            
+            if (query.length >= 2) {
+                const results = await searchGames(query, 'dlc', selectedGameAppId);
+                renderSuggestions(results, dlcSuggestionsDiv, selectDlc);
+            } else {
+                dlcSuggestionsDiv.innerHTML = '';
+                // Note: We don't clear appidInput here, as it should retain the main game's appid unless a DLC is selected.
             }
         });
 
-
-        // --- Render Log Table ---
-
-        function renderLog(log) {
-            logBody.innerHTML = '';
+        // Toggle DLC/Expansion group visibility
+        dlcCheckbox.addEventListener('change', () => {
+            const isChecked = dlcCheckbox.checked;
+            dlcNameGroup.classList.toggle('hidden', !isChecked);
+            // Require DLC name only if the checkbox is checked
+            dlcNameInput.required = isChecked;
             
-            const loadingRow = document.getElementById('loadingRow');
-            if (loadingRow) loadingRow.remove();
+            // If turning off DLC, revert appid back to the selected main game if one exists
+            if (!isChecked && selectedGameAppId) {
+                appidInput.value = selectedGameAppId;
+                dlcNameInput.value = '';
+                dlcSuggestionsDiv.innerHTML = '';
+            } else if (isChecked && selectedGameAppId) {
+                // If turning on DLC, reset appid to main game and require DLC input
+                appidInput.value = selectedGameAppId;
+            }
+        });
 
-            if (log.length === 0) {
-                logBody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-gray-500">No completed games logged yet. Add your first entry!</td></tr>';
+        openModalBtn.addEventListener('click', () => toggleModal(true));
+        closeModalBtn.addEventListener('click', () => toggleModal(false));
+        // Close modal when clicking outside (on the overlay)
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                toggleModal(false);
+            }
+        });
+        
+        /**
+         * Renders the log table rows.
+         * @param {Array} logEntries 
+         */
+        function renderLog(logEntries) {
+            logTableBody.innerHTML = ''; // Clear existing rows
+            totalCompletedCount.textContent = logEntries.length.toLocaleString();
+
+            if (logEntries.length === 0) {
+                logTableBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">No completion entries logged yet.</td></tr>';
                 return;
             }
 
-            // Reverse the array to show most recent completions first
-            log.slice().reverse().forEach(entry => {
+            logEntries.forEach(entry => {
                 const row = document.createElement('tr');
-                row.className = 'hover:bg-[#21262d] transition duration-150';
+                const isDlc = entry.is_dlc_expansion;
                 
-                // Determine context string for display
-                let contextHtml = '';
-                
-                if (entry.is_dlc_expansion) {
-                    contextHtml += `<span class="inline-block bg-blue-800 text-blue-200 text-xs font-semibold px-2 py-0.5 rounded-full mr-1">DLC</span>`;
-                    if (entry.parent_game_name) {
-                        contextHtml += `(Parent: ${entry.parent_game_name})`;
-                    }
-                }
-                
-                if (entry.is_part_of_collection) {
-                    contextHtml += `<span class="inline-block bg-purple-800 text-purple-200 text-xs font-semibold px-2 py-0.5 rounded-full mr-1">Collection</span>`;
-                    if (entry.collection_name) {
-                        contextHtml += `(${entry.collection_name})`;
-                    }
-                }
-                
-                if (!entry.is_dlc_expansion && !entry.is_part_of_collection) {
-                    contextHtml = '<span class="text-gray-500">Base Game</span>';
-                }
+                row.className = 'hover:bg-gray-800 transition duration-150';
 
-                row.innerHTML = `
-                    <td class="px-3 py-3 text-sm font-medium text-white">${entry.game_name}</td>
-                    <td class="px-3 py-3 text-sm">${entry.completed_date}</td>
-                    <td class="px-3 py-3 text-sm">${entry.platform}</td>
-                    <td class="px-3 py-3 text-sm">${entry.playthroughs}</td>
-                    <td class="px-3 py-3 text-sm">${contextHtml}</td>
-                    <td class="px-3 py-3 text-sm text-gray-400 max-w-xs overflow-hidden truncate" title="${entry.notes || 'No notes provided.'}">${entry.notes || '—'}</td>
+                // Game Name Column
+                const nameCell = document.createElement('td');
+                nameCell.className = 'px-4 py-3 whitespace-nowrap text-sm font-medium';
+                nameCell.innerHTML = `
+                    <div class="text-white">${entry.game_name}</div>
+                    ${isDlc ? '<span class="text-xs text-blue-400 italic">DLC / Expansion</span>' : '<span class="text-xs text-gray-500">Main Game</span>'}
                 `;
-                logBody.appendChild(row);
+                row.appendChild(nameCell);
+
+                // Date Column
+                const dateCell = document.createElement('td');
+                dateCell.className = 'px-4 py-3 whitespace-nowrap text-sm text-gray-300';
+                dateCell.textContent = entry.completion_date || 'N/A';
+                row.appendChild(dateCell);
+                
+                // Collection Column (Hidden on small screens)
+                const collectionCell = document.createElement('td');
+                collectionCell.className = 'px-4 py-3 whitespace-nowrap text-sm text-gray-400 hidden sm:table-cell';
+                collectionCell.textContent = entry.collection_name || '—';
+                row.appendChild(collectionCell);
+                
+                // Notes Column (Hidden on medium screens)
+                const notesCell = document.createElement('td');
+                notesCell.className = 'px-4 py-3 whitespace-pre-wrap text-sm text-gray-400 max-w-xs hidden lg:table-cell';
+                notesCell.textContent = entry.notes || '—';
+                row.appendChild(notesCell);
+
+                // Actions Column
+                const actionsCell = document.createElement('td');
+                actionsCell.className = 'px-4 py-3 whitespace-nowrap text-right text-sm font-medium';
+                
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'text-red-500 hover:text-red-300 transition duration-150 p-2 rounded-full';
+                deleteBtn.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>`;
+                deleteBtn.title = `Delete log entry for ${entry.game_name}`;
+                deleteBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    // Custom modal/confirmation would be ideal, but for now use console feedback
+                    if (confirm(`Are you sure you want to delete the log entry for "${entry.game_name}"?`)) {
+                        deleteLogEntry(entry.id, entry.game_name);
+                    }
+                });
+                
+                actionsCell.appendChild(deleteBtn);
+                row.appendChild(actionsCell);
+
+                logTableBody.appendChild(row);
             });
         }
-
-        // --- Fetch & Submit Handlers ---
-
+        
+        /** Fetches the entire completion log. */
         async function fetchLog() {
+            logTableBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">Loading log...</td></tr>';
             try {
-                const response = await fetch(API_URL);
-                if (!response.ok) throw new Error('Failed to fetch completed log.');
-                const log = await response.json();
-                renderLog(log);
+                const response = await fetch(API_GET_LOG_ENDPOINT);
+                const data = await response.json();
+
+                if (response.ok) {
+                    renderLog(data.log || []);
+                } else {
+                    showStatus(`Failed to load log: ${data.error || 'Server error'}`, true);
+                    logTableBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-red-500">Error loading data.</td></tr>';
+                }
             } catch (error) {
-                showStatus(`Failed to load log: ${error.message}`, true);
-                logBody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-red-500">Error loading data. Check server connection.</td></tr>';
+                showStatus(`Network error loading log: ${error.message}`, true);
+                logTableBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-red-500">Network error. Check server.</td></tr>';
+            }
+        }
+        
+        /** * Deletes a log entry by ID.
+         * @param {string} logId 
+         * @param {string} gameName 
+         */
+        async function deleteLogEntry(logId, gameName) {
+            try {
+                const endpoint = API_DELETE_ENDPOINT_BASE + logId;
+                const response = await fetch(endpoint, { method: 'DELETE' });
+                
+                if (response.ok) {
+                    showStatus(`Entry for "${gameName}" deleted successfully.`);
+                    fetchLog(); // Refresh the table
+                } else {
+                    const errorData = await response.json();
+                    showStatus(`Deletion failed for "${gameName}": ${errorData.error || 'Server error'}`, true);
+                }
+            } catch (error) {
+                showStatus(`Network error during deletion: ${error.message}`, true);
             }
         }
 
-        form.addEventListener('submit', async (e) => {
+        // --- Form Submission ---
+        logForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            document.getElementById('submitBtn').textContent = 'Saving...';
-            document.getElementById('submitBtn').disabled = true;
+            
+            // Basic client-side validation check
+            if (!appidInput.value) {
+                modalStatus.textContent = 'Please select a valid game from the search results.';
+                modalStatus.classList.remove('hidden');
+                return;
+            }
+            if (dlcCheckbox.checked && !dlcNameInput.value) {
+                modalStatus.textContent = 'Please enter or select a DLC/Expansion name.';
+                modalStatus.classList.remove('hidden');
+                return;
+            }
+            modalStatus.classList.add('hidden');
 
-            const formData = new FormData(form);
-            const data = {
+            submitBtn.textContent = 'Submitting...';
+            submitBtn.disabled = true;
+
+            const formData = new FormData(logForm);
+
+            // Construct the payload
+            let data = {
+                appid: formData.get('appid'),
                 game_name: formData.get('gameName'),
-                completed_date: formData.get('completedDate'),
-                platform: formData.get('platform'),
-                playthroughs: parseInt(formData.get('playthroughs') || 1, 10),
+                completion_date: formData.get('completion_date'),
+                is_dlc_expansion: dlcCheckbox.checked,
                 notes: formData.get('notes'),
-                
-                is_dlc_expansion: formData.get('isDlcExpansion') === 'on',
-                parent_game_name: formData.get('parentGameName') || null,
-                
-                is_part_of_collection: formData.get('isPartOfCollection') === 'on',
-                collection_name: formData.get('collectionName') || null,
+                collection_name: formData.get('collection_name') || null,
             };
 
+            // If it is a DLC/Expansion, and the user entered a specific DLC name, use the DLC name field 
+            // as the primary game_name for the log entry, regardless of what's in the main gameName field.
+            if (data.is_dlc_expansion && formData.get('dlc_name')) {
+                 data.game_name = formData.get('dlc_name');
+            }
+
+
             try {
-                const response = await fetch(API_URL, {
+                const response = await fetch(API_LOG_ENDPOINT, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
@@ -341,13 +487,12 @@
             } catch (error) {
                 showStatus(`Network error during submission: ${error.message}`, true);
             } finally {
-                document.getElementById('submitBtn').textContent = 'Log Completion';
-                document.getElementById('submitBtn').disabled = false;
+                submitBtn.textContent = 'Log Completion';
+                submitBtn.disabled = false;
             }
         });
 
         // Load data on page load
         document.addEventListener('DOMContentLoaded', fetchLog);
     </script>
-</body>
-</html>
+{% endblock %}

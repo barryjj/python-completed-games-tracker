@@ -1,0 +1,59 @@
+/* Centralized Dark Theme Styles 
+These styles define the primary color palette for the application's dark theme, 
+using GitHub's dark mode aesthetic as a base. 
+*/
+
+:root {
+    /* Core Background & Text */
+    --color-bg-primary: #0d1117;        /* Main page background */
+    --color-text-primary: #c9d1d9;      /* Main text color (light gray) */
+    
+    /* Card/Element Backgrounds */
+    --color-bg-card: #161b22;           /* Card/Container background */
+    --color-border-card: #30363d;       /* Card border/Separators */
+    
+    /* Inputs */
+    --color-bg-input: #0d1117;
+    --color-border-input: #30363d;
+    
+    /* Accent Colors (Green/Blue for Success/Info) */
+    --color-success: #238636;           /* Primary action button/Success status */
+    --color-info: #388bfd;              /* Info status/Links */
+    --color-table-header: #21262d;      /* Table header background */
+}
+
+/* Base Body Styles (Applied in base.html) */
+body { 
+    font-family: 'Inter', sans-serif; 
+    background-color: var(--color-bg-primary); 
+    color: var(--color-text-primary); 
+}
+
+/* Generic Component Styles */
+.card { 
+    background-color: var(--color-bg-card); 
+    border: 1px solid var(--color-border-card); 
+}
+
+/* Input Overrides for Dark Theme Consistency */
+.input-style { 
+    background-color: var(--color-bg-input); 
+    border-color: var(--color-border-input); 
+    color: var(--color-text-primary); 
+}
+
+/* Button & Status Overrides */
+.btn-primary { background-color: var(--color-success); }
+.btn-primary:hover { background-color: #2ea043; } /* Slightly darker green */
+
+.btn-secondary { background-color: var(--color-border-card); }
+.btn-secondary:hover { background-color: #484f58; } /* Slightly lighter gray */
+
+.success-status { background-color: var(--color-success); }
+.info-status { background-color: var(--color-info); }
+.table-header { background-color: var(--color-table-header); }
+
+/* Modal Backdrop (from log.html) */
+.modal-backdrop { 
+    background-color: rgba(0, 0, 0, 0.75); 
+}

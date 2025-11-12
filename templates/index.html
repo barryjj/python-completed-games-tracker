@@ -1,103 +1,221 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yearly Completion Tracker</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Inter', sans-serif; background-color: #0d1117; }
-        .card { background-color: #161b22; border: 1px solid #30363d; }
-        .success { background-color: #238636; }
-        .info { background-color: #388bfd; }
-    </style>
-</head>
-<body class="p-4 sm:p-8 min-h-screen flex items-center justify-center">
+{% extends "base.html" %}
 
-    <div class="w-full max-w-4xl">
-        <h1 class="text-4xl font-bold text-white mb-8 text-center">
-            2025 Game Completion Log
+{% block title %}Dashboard - Steam Tracker{% endblock %}
+
+{% block content %}
+    <div class="w-full max-w-6xl mx-auto">
+        <h1 class="text-4xl font-extrabold text-white mb-8 text-center sm:text-left">
+            Steam Game Completion Tracker
         </h1>
 
-        <!-- Error Message Display -->
+        <!-- Navigation -->
+        <nav class="flex flex-wrap gap-3 sm:gap-4 mb-8 border-b border-gray-700 pb-4">
+            <a href="{{ url_for('views.index_or_setup') }}" class="nav-link-active">
+                Dashboard
+            </a>
+            <!-- FIX: Renamed the endpoint from 'views.library_view' to 'views.view_library' as defined in views.py -->
+            <a href="{{ url_for('views.view_library') }}" class="nav-link-inactive">
+                Full Library
+            </a>
+            <a href="{{ url_for('views.view_log') }}" class="nav-link-inactive">
+                Completed Log
+            </a>
+            <a href="{{ url_for('views.setup') }}" class="nav-link-inactive">
+                Setup
+            </a>
+        </nav>
+
+        <!-- Flash Messages Display -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div id="flash-messages" class="mb-6 space-y-3">
+                    {% for category, message in messages %}
+                        <div class="p-4 rounded-lg shadow-md {% if category == 'warning' %}bg-yellow-700 text-white{% else %}bg-green-700 text-white{% endif %} font-medium" role="alert">
+                            <p>{{ message }}</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        <!-- Error Message from views.py -->
         {% if error %}
-        <div class="bg-red-700 text-white p-4 rounded-lg mb-6 shadow-md" role="alert">
-            <p class="font-semibold">Error:</p>
+        <div class="p-4 rounded-lg shadow-md bg-red-700 text-white font-medium mb-6" role="alert">
             <p>{{ error }}</p>
-            <p class="text-sm mt-2">Please go to <a href="{{ url_for('setup') }}" class="underline font-bold">Setup Page</a> to check your credentials.</p>
+            <p class="text-sm mt-2">
+                Go to the <a href="{{ url_for('views.setup') }}" class="font-bold underline hover:opacity-75">Setup Page</a> to enter your credentials and refresh the library.
+            </p>
         </div>
         {% endif %}
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Dashboard Widgets -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <!-- Widget 1: Total Games -->
+            <div class="card p-6 rounded-xl shadow-xl border border-gray-700 transform hover:scale-[1.01] transition duration-300">
+                <p class="text-sm font-medium text-gray-400">Total Games Owned</p>
+                <p id="totalGames" class="text-3xl font-bold text-blue-400 mt-1">...</p>
+            </div>
+
+            <!-- Widget 2: Total Playtime -->
+            <div class="card p-6 rounded-xl shadow-xl border border-gray-700 transform hover:scale-[1.01] transition duration-300">
+                <p class="text-sm font-medium text-gray-400">Total Playtime (Hours)</p>
+                <p id="totalPlaytime" class="text-3xl font-bold text-green-400 mt-1">...</p>
+            </div>
+
+            <!-- Widget 3: Completed Games -->
+            <div class="card p-6 rounded-xl shadow-xl border border-gray-700 transform hover:scale-[1.01] transition duration-300">
+                <p class="text-sm font-medium text-gray-400">Games Completed</p>
+                <p id="completedCount" class="text-3xl font-bold text-purple-400 mt-1">...</p>
+            </div>
             
-            <!-- Library Status Card -->
-            <div class="card p-6 rounded-xl shadow-lg">
-                <h2 class="text-2xl font-semibold text-gray-200 mb-4 flex items-center">
-                    <svg class="w-6 h-6 mr-3 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-                    Steam Library Cache
-                </h2>
-                <p class="text-xl font-bold text-white mb-2">{{ library_size }} <span class="text-gray-400 font-normal text-sm">Games Owned</span></p>
-                
-                <p class="text-gray-400 text-sm">
-                    This list is used to quickly pull details when you log a completed game. It auto-refreshed on page load if it was stale.
-                </p>
-
-                <div class="mt-4">
-                    <button id="refreshLibraryBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150 shadow-md">
-                        Manually Refresh Library
-                    </button>
-                    <p id="libraryStatus" class="mt-2 text-sm text-yellow-500 hidden"></p>
-                </div>
+            <!-- Widget 4: Completion Percentage -->
+            <div class="card p-6 rounded-xl shadow-xl border border-gray-700 transform hover:scale-[1.01] transition duration-300">
+                <p class="text-sm font-medium text-gray-400">Completion Rate</p>
+                <p id="completionRate" class="text-3xl font-bold text-red-400 mt-1">...</p>
             </div>
-
-            <!-- Completed Log Card -->
-            <div class="card p-6 rounded-xl shadow-lg">
-                <h2 class="text-2xl font-semibold text-gray-200 mb-4 flex items-center">
-                    <svg class="w-6 h-6 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 014.382 1.033 12.004 12.004 0 00-4.382 17.022c0 0 0 0 0 0a12.004 12.004 0 004.382-17.022z"></path></svg>
-                    Completed Games Log
-                </h2>
-                <p class="text-xl font-bold text-white mb-2">{{ log_size }} <span class="text-gray-400 font-normal text-sm">Games Logged</span></p>
-                
-                <p class="text-gray-400 text-sm">
-                    This is your annual tracker. Each entry includes: Name, Platform, Date, Playthroughs, Notes, and Collection status.
-                </p>
-
-                <div class="mt-4">
-                    <button onclick="window.location.href='/log'" class="success hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150 shadow-md">
-                        View/Add Completed Games
-                    </button>
-                </div>
-            </div>
-
         </div>
-    </div>
-    
-    <script>
-        document.getElementById('refreshLibraryBtn').addEventListener('click', async () => {
-            const statusElement = document.getElementById('libraryStatus');
-            statusElement.classList.remove('hidden', 'text-yellow-500', 'text-red-500', 'text-green-500');
-            statusElement.classList.add('text-yellow-500');
-            statusElement.textContent = "Refreshing... please wait.";
 
-            // Hitting the main route triggers the library refresh logic in Python
+        <!-- Refresh and Status Section -->
+        <div class="card p-6 rounded-xl shadow-xl border border-gray-700">
+            <h2 class="text-2xl font-semibold text-white mb-4 border-b border-gray-700 pb-3">Library Management</h2>
+            <p class="text-sm text-gray-400 mb-4">
+                Last updated: <span id="lastUpdated" class="font-mono text-blue-300">{{ last_updated }}</span>
+            </p>
+            
+            <button id="refreshLibraryBtn" class="btn-primary py-3 px-6 rounded-lg font-bold shadow-lg flex items-center justify-center transition duration-200 w-full sm:w-auto">
+                Refresh Library Data
+            </button>
+            
+            <p id="refreshStatus" class="mt-4 text-sm font-medium text-gray-400"></p>
+        </div>
+
+    </div>
+
+    <script>
+        const refreshBtn = document.getElementById('refreshLibraryBtn');
+        const statusElement = document.getElementById('refreshStatus');
+        const lastUpdatedElement = document.getElementById('lastUpdated');
+
+        const totalGamesElement = document.getElementById('totalGames');
+        const totalPlaytimeElement = document.getElementById('totalPlaytime');
+        const completedCountElement = document.getElementById('completedCount');
+        const completionRateElement = document.getElementById('completionRate');
+
+        const API_REFRESH_ENDPOINT = '{{ url_for('api.api_refresh_library') }}';
+        const API_STATUS_ENDPOINT = '{{ url_for('api.api_library_status') }}';
+        const API_STATS_ENDPOINT = '{{ url_for('api.api_completion_stats') }}';
+
+        /**
+         * Converts minutes to a formatted string of hours and minutes.
+         * @param {number} minutes 
+         * @returns {string}
+         */
+        function formatPlaytime(minutes) {
+            if (typeof minutes !== 'number' || minutes < 0) return '0 hrs';
+            const hours = Math.floor(minutes / 60);
+            const remainingMinutes = minutes % 60;
+            if (hours === 0 && remainingMinutes === 0) return '0 hrs';
+            
+            let parts = [];
+            if (hours > 0) {
+                parts.push(`${hours.toLocaleString()} hrs`);
+            }
+            if (remainingMinutes > 0 && hours < 100) { // Only show minutes if hours are small
+                 parts.push(`${remainingMinutes} min`);
+            }
+            return parts.join(' ');
+        }
+        
+        /**
+         * Fetches and updates the main library status (games count, playtime, last updated).
+         */
+        async function fetchLibraryStatus() {
             try {
-                // Fetching the index route again triggers the check/refresh logic in app.py
-                const response = await fetch('/', { method: 'GET' }); 
+                const response = await fetch(API_STATUS_ENDPOINT);
+                const data = await response.json();
+
                 if (response.ok) {
-                    statusElement.classList.replace('text-yellow-500', 'text-green-500');
-                    statusElement.textContent = "Refresh successful! Reloading page in 2s to show updated count...";
-                    setTimeout(() => window.location.reload(), 2000);
+                    totalGamesElement.textContent = data.total_games.toLocaleString();
+                    totalPlaytimeElement.textContent = formatPlaytime(data.total_playtime_minutes);
+                    lastUpdatedElement.textContent = data.last_updated;
                 } else {
-                    const data = await response.text();
+                    console.error('Failed to fetch library status:', data.error);
+                }
+            } catch (error) {
+                console.error('Network error during status fetch:', error);
+            }
+        }
+        
+        /**
+         * Fetches and updates the game completion statistics.
+         */
+        async function fetchCompletionStats() {
+            try {
+                const response = await fetch(API_STATS_ENDPOINT);
+                const data = await response.json();
+
+                if (response.ok) {
+                    completedCountElement.textContent = data.completed_count.toLocaleString();
+                    // Calculate and display percentage, handling division by zero
+                    let rate = 0;
+                    if (data.total_games > 0) {
+                        rate = (data.completed_count / data.total_games) * 100;
+                    }
+                    completionRateElement.textContent = `${rate.toFixed(1)}%`;
+                } else {
+                    console.error('Failed to fetch completion stats:', data.error);
+                }
+            } catch (error) {
+                console.error('Network error during stats fetch:', error);
+            }
+        }
+
+        // --- Refresh Library Handler ---
+        refreshBtn.addEventListener('click', async function() {
+            const originalText = refreshBtn.innerHTML;
+            
+            statusElement.className = 'mt-4 text-sm font-medium text-yellow-500';
+            statusElement.textContent = "Requesting library refresh... This may take a moment.";
+            refreshBtn.innerHTML = '<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Refreshing...';
+            refreshBtn.disabled = true;
+
+            try {
+                const response = await fetch(API_REFRESH_ENDPOINT, { method: 'POST' });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    statusElement.classList.replace('text-yellow-500', 'text-green-500');
+                    statusElement.textContent = data.message;
+                    
+                    // Wait a few seconds to let the user see the success message, then update widgets
+                    setTimeout(() => {
+                        fetchLibraryStatus();
+                        fetchCompletionStats();
+                        statusElement.textContent = "Dashboard updated!";
+                        statusElement.classList.remove('text-green-500');
+                        statusElement.classList.add('text-gray-400'); // Reset to default style
+                        refreshBtn.innerHTML = originalText;
+                        refreshBtn.disabled = false;
+                    }, 5000); 
+                } else {
+                    const data = await response.json();
                     statusElement.classList.replace('text-yellow-500', 'text-red-500');
-                    statusElement.textContent = `Refresh failed. Please check app.py logs or credentials: ${data.substring(0, 50)}...`;
+                    statusElement.textContent = `Refresh failed: ${data.error || 'Unknown error'}`;
+                    refreshBtn.innerHTML = originalText;
+                    refreshBtn.disabled = false;
                 }
             } catch (error) {
                 statusElement.classList.replace('text-yellow-500', 'text-red-500');
                 statusElement.textContent = `Network error during refresh: ${error.message}. Check Python server status.`;
+                refreshBtn.innerHTML = originalText;
+                refreshBtn.disabled = false;
             }
         });
+
+        // Load data on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchLibraryStatus();
+            fetchCompletionStats();
+        });
     </script>
-</body>
-</html>
+{% endblock %}

@@ -1,144 +1,141 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Setup - Steam Tracker</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Inter', sans-serif; background-color: #0d1117; color: #c9d1d9; }
-        .card { background-color: #161b22; border: 1px solid #30363d; }
-        .input-style { background-color: #0d1117; border-color: #30363d; color: #c9d1d9; }
-        .btn-primary { background-color: #238636; }
-        .btn-primary:hover { background-color: #2ea043; }
-        .btn-secondary { background-color: #30363d; }
-        .btn-secondary:hover { background-color: #484f58; }
-    </style>
-</head>
-<body class="p-4 sm:p-8 min-h-screen flex items-center justify-center">
+{% extends "base.html" %}
 
-    <div class="w-full max-w-lg">
-        <h1 class="text-4xl font-bold text-white mb-6 text-center">
-            Application Setup
+{% block title %}Setup - Steam Tracker{% endblock %}
+
+{% block content %}
+    <div class="w-full max-w-lg mx-auto">
+        <h1 class="text-4xl font-extrabold text-white mb-6 text-center">
+            Initial Setup
         </h1>
-        <p class="text-gray-400 text-center mb-8">
-            Enter your Steam API Key and User ID to initialize the tracker.
-        </p>
-        
-        <div id="statusMessage" class="hidden p-4 mb-6 rounded-lg font-semibold transition duration-300"></div>
 
-        <div class="card p-8 rounded-xl shadow-2xl">
-            
-            <form id="setupForm" method="POST" action="{{ url_for('setup') }}" class="space-y-6">
-                
+        <div class="card p-6 sm:p-8 rounded-xl shadow-xl">
+            <!-- Navigation Links -->
+            <div class="flex justify-between mb-6 border-b border-gray-700 pb-4">
+                <!-- FIX: Changed 'views.index' to the correct 'views.index_or_setup' endpoint -->
+                <a href="{{ url_for('views.index_or_setup') }}" class="btn-secondary py-2 px-4 rounded-lg font-semibold shadow-md flex items-center">
+                    ← Back to Dashboard
+                </a>
+                <a href="{{ url_for('views.view_log') }}" class="btn-secondary py-2 px-4 rounded-lg font-semibold shadow-md flex items-center">
+                    Completed Log
+                </a>
+            </div>
+
+            <!-- Instructions -->
+            <p class="text-gray-400 mb-6 text-sm">
+                To start tracking your games, we need your Steam API Key and your Steam ID. This allows the application to fetch your game library.
+                <a href="https://steamcommunity.com/dev/apikey" target="_blank" class="text-blue-400 hover:text-blue-300 font-semibold transition duration-150 block mt-2">
+                    Get your **Steam Web API Key** here (Requires a $5 purchase history).
+                </a>
+                <a href="https://steamid.io/" target="_blank" class="text-blue-400 hover:text-blue-300 font-semibold transition duration-150 block mt-1">
+                    Find your **Steam ID** here.
+                </a>
+            </p>
+
+            <!-- Status Message Area -->
+            <div id="statusMessage" class="hidden p-3 mb-4 rounded-xl text-sm font-medium" role="alert"></div>
+
+            <form id="setupForm" class="space-y-6">
                 <!-- Steam API Key Input -->
                 <div>
-                    <label for="steam_api_key" class="block text-sm font-medium mb-2">Steam Web API Key</label>
-                    <input type="text" id="steam_api_key" name="steam_api_key" 
-                           value="{{ current_key or '' }}" required 
-                           class="input-style w-full p-3 rounded-lg border focus:ring-blue-500 focus:border-blue-500"
-                           placeholder="e.g., A1B2C3D4E5F67890">
-                    <p class="mt-1 text-xs text-gray-500">
-                        Get yours from: <a href="https://steamcommunity.com/dev/apikey" target="_blank" class="text-blue-400 hover:underline">steamcommunity.com/dev/apikey</a>
-                    </p>
+                    <label for="steam_api_key" class="block text-sm font-medium text-gray-300 mb-1">Steam Web API Key</label>
+                    <input type="text" 
+                           id="steam_api_key" 
+                           name="steam_api_key" 
+                           value="{{ config.steam_api_key | default('') }}"
+                           required 
+                           class="input-style w-full p-3 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150"
+                           placeholder="Enter your API Key">
                 </div>
 
-                <!-- Steam User ID Input -->
+                <!-- Steam ID Input -->
                 <div>
-                    <label for="steam_user_id" class="block text-sm font-medium mb-2">Steam User ID (64-bit)</label>
-                    <input type="text" id="steam_user_id" name="steam_user_id" 
-                           value="{{ current_user_id or '' }}" required 
-                           class="input-style w-full p-3 rounded-lg border focus:ring-blue-500 focus:border-blue-500"
-                           placeholder="e.g., 76561198000000000">
-                    <p class="mt-1 text-xs text-gray-500">
-                        This is the unique 17-digit ID for your profile.
-                    </p>
+                    <label for="steam_id" class="block text-sm font-medium text-gray-300 mb-1">Your Steam ID (e.g., 76561198...)</label>
+                    <input type="text" 
+                           id="steam_id" 
+                           name="steam_id" 
+                           value="{{ config.steam_id | default('') }}"
+                           required 
+                           class="input-style w-full p-3 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150"
+                           placeholder="Enter your 64-bit Steam ID">
                 </div>
-
-                <!-- Current Status Badge -->
-                {% if current_key and current_user_id %}
-                <div class="text-center pt-2">
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-900 text-green-300">
-                        <svg class="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
-                        Credentials are currently set. Submitting will update them.
-                    </span>
-                </div>
-                {% endif %}
-
-                <!-- Submission Button -->
-                <div class="pt-4">
-                    <button type="submit" id="submitBtn" class="w-full btn-primary text-white font-bold py-3 rounded-lg transition duration-150 shadow-md">
-                        Save and Verify Credentials
-                    </button>
-                </div>
+                
+                <!-- Save Button -->
+                <button type="submit" id="submitBtn" class="btn-primary w-full py-3 rounded-lg font-bold text-lg shadow-lg">
+                    Save and Verify Credentials
+                </button>
             </form>
         </div>
-
-        <!-- Go back to Dashboard if credentials exist -->
-        {% if current_key and current_user_id %}
-        <div class="text-center mt-6">
-            <a href="{{ url_for('index_or_setup') }}" class="btn-secondary text-white font-bold py-2 px-4 rounded-lg transition duration-150 inline-block shadow-md">
-                Go to Dashboard
-            </a>
-        </div>
-        {% endif %}
     </div>
-    
+{% endblock %}
+
+{% block scripts %}
     <script>
-        const statusMessage = document.getElementById('statusMessage');
-
-        function showStatus(message, isError = false) {
+        // Helper function for showing status messages
+        function showStatus(message, isError) {
+            const statusMessage = document.getElementById('statusMessage');
             statusMessage.textContent = message;
-            statusMessage.className = `p-4 mb-6 rounded-lg font-semibold transition duration-300 ${isError ? 'bg-red-700 text-white' : 'bg-green-700 text-white'}`;
-            statusMessage.classList.remove('hidden');
+            statusMessage.classList.remove('hidden', 'bg-red-700', 'bg-green-700');
+            
+            if (isError) {
+                statusMessage.classList.add('bg-red-700');
+            } else {
+                statusMessage.classList.add('bg-green-700');
+            }
         }
+        
+        // --- Form Submission Handler ---
+        document.getElementById('setupForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
 
-        const form = document.getElementById('setupForm');
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
             const submitBtn = document.getElementById('submitBtn');
-            submitBtn.textContent = 'Verifying...';
+            submitBtn.textContent = 'Saving...';
             submitBtn.disabled = true;
 
-            const formData = new FormData(form);
+            const formData = new FormData(this);
             
+            // CRITICAL: Convert FormData to JSON Object for Flask endpoint
+            const jsonPayload = Object.fromEntries(formData);
+
             try {
-                // Post data to the setup route
-                const response = await fetch('{{ url_for('setup') }}', {
+                // Submit data as JSON. Using {{ url_for('views.setup') }} for the POST route
+                const response = await fetch('{{ url_for('views.setup') }}', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(Object.fromEntries(formData))
+                    body: JSON.stringify(jsonPayload) 
                 });
 
+                // Server responded (status 200, 400, 500, etc.)
                 const data = await response.json();
 
                 if (response.ok) {
                     showStatus(data.message, false);
                     setTimeout(() => {
-                        // Redirect to the index page after successful setup and library sync
-                        window.location.href = '{{ url_for('index_or_setup') }}';
+                        // FIX: Updated redirect to 'views.index_or_setup'
+                        window.location.href = '{{ url_for('views.index_or_setup') }}';
                     }, 1500);
                 } else {
-                    showStatus(data.error || 'Setup failed due to an unknown error.', true);
+                    // Server returned an error, display it
+                    showStatus(data.error || 'Setup failed due to an unknown server error.', true);
                 }
             } catch (error) {
+                // This block handles network errors (e.g., server not running)
                 showStatus(`Network error: ${error.message}. Is the server running?`, true);
             } finally {
                 submitBtn.textContent = 'Save and Verify Credentials';
                 submitBtn.disabled = false;
             }
         });
+        
+        // --- Flash Message Logic (If Flask flash messages are used) ---
+        // Note: For this form submission, we rely on the JS status messages, 
+        // but this logic is generally useful for redirects.
 
-        // Display flash messages from the server on initial load
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    // Display server message, treating 'error' category as an error
-                    showStatus(message, category === 'error');
+                    showStatus("{{ message | e }}", category == 'error');
                 {% endfor %}
             {% endif %}
         {% endwith %}
     </script>
-</body>
-</html>
+{% endblock %}
